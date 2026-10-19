@@ -37,47 +37,68 @@
 └── docker-compose.yml
 ```
 
-## 本地运行
+## Docker 镜像
 
-```bash
-docker compose up -d --build
-# 打开 http://127.0.0.1:8080
+镜像由 GitHub Actions 自动构建并发布，支持 `linux/amd64` 与 `linux/arm64`：
+
+```
+ghcr.io/jackxunkun163/vps-value-calculator:latest
 ```
 
-或使用 PHP 内置服务器（PHP 8.1+）：
+直接运行（等价于拉取安装）：
 
 ```bash
-cd html
-php -S 127.0.0.1:8080    # 需将 ../app 提升为可访问路径，推荐直接用 Docker
+docker run -d --name vps-calculator --restart unless-stopped \
+  -p 8080:80 \
+  ghcr.io/jackxunkun163/vps-value-calculator:latest
 ```
 
-## 1Panel 部署（Docker）
+> 需要 Docker Hub（docker.io）上的镜像？见下方「发布到 Docker Hub」一节——配置两个仓库 Secret 后，CI 会自动双推，镜像地址变为 `<你的用户名>/vps-value-calculator`。
 
-### 方式一：1Panel 编排（推荐）
+## 1Panel 部署
 
-1. SSH 登录服务器，克隆仓库：
+### 方式一：编排（推荐，无需克隆代码）
 
-   ```bash
-   cd /opt
-   git clone https://github.com/<你的用户名>/vps-value-calculator.git
-   cd vps-value-calculator
-   ```
-
-2. （可选）修改 `docker-compose.yml` 中的宿主机端口（默认 `8080`）。
-
-3. 打开 1Panel → **容器** → **编排** → **创建编排**：
+1. 打开 1Panel → **容器** → **编排** → **创建编排**：
    - 名称：`vps-calculator`
-   - 路径：选择上面克隆的 `/opt/vps-value-calculator` 目录
-   - 点击 **确认**，等待构建并启动。
+   - 来源选择**编辑内容**（或模板编辑），粘贴以下内容：
 
-4. 访问 `http://服务器IP:8080` 即可使用。
+     ```yaml
+     services:
+       vps-calculator:
+         image: ghcr.io/jackxunkun163/vps-value-calculator:latest
+         container_name: vps-calculator
+         restart: unless-stopped
+         ports:
+           - "8080:80"   # 左侧为宿主机端口，可按需修改
+         volumes:
+           - vps-data:/var/www/data         # 汇率缓存 / 计数数据
+           - vps-share:/var/www/html/share  # 生成的 SVG 分享图
 
-### 方式二：命令行直接部署
+     volumes:
+       vps-data:
+       vps-share:
+     ```
+
+2. 点击**确认**，等待镜像拉取并启动，访问 `http://服务器IP:8080`。
+
+> 也可使用仓库根目录的 `docker-compose.yml`（内容与上面一致），通过「编排 → 创建编排 → 指定路径」克隆后使用。
+
+### 方式二：1Panel 容器界面直接拉镜像
+
+1Panel → **容器** → **容器** → **创建容器**：
+
+- 名称：`vps-calculator`
+- 镜像：`ghcr.io/jackxunkun163/vps-value-calculator:latest`
+- 端口映射：宿主机 `8080` → 容器 `80`
+- 挂载卷：建议创建两个命名卷，分别挂载到 `/var/www/data`（汇率缓存/计数）与 `/var/www/html/share`（分享图），重建容器后数据不丢失
+
+### 方式三：从源码构建
 
 ```bash
-git clone https://github.com/<你的用户名>/vps-value-calculator.git
+git clone https://github.com/jackxunkun163/vps-value-calculator.git
 cd vps-value-calculator
-docker compose up -d --build
+docker compose -f docker-compose.build.yml up -d --build
 ```
 
 ### 建议的配套设置
@@ -89,6 +110,18 @@ docker compose up -d --build
 
 - `vps-data` 卷（`/var/www/data`）：`rates.json` 汇率缓存、`count.json` 计数。删除后自动重建。
 - `vps-share` 卷（`/var/www/html/share`）：生成的 SVG 分享图，可通过 `/share/<id>.svg` 直接访问。
+
+## 发布到 Docker Hub（可选）
+
+CI（`.github/workflows/docker-publish.yml`）默认把镜像推送到 ghcr.io。如需同步发布到 Docker Hub：
+
+1. 登录 [Docker Hub](https://hub.docker.com/) → **Account Settings** → **Security** → **New Access Token**，权限选择 **Read & Write**，复制令牌。
+2. 打开 GitHub 仓库 → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**，添加：
+   - `DOCKERHUB_USERNAME`：Docker Hub 用户名
+   - `DOCKERHUB_TOKEN`：上一步生成的访问令牌
+3. 之后每次 push 到 `main`（或推送 `v*` 标签）会自动双推；也可在 **Actions** 页面手动 **Run workflow**。
+
+配置完成后镜像地址为：`<你的DockerHub用户名>/vps-value-calculator:latest`，1Panel 中把 compose 的 `image:` 换成该地址即可。
 
 ## 环境要求
 
