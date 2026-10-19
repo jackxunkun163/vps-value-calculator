@@ -1,8 +1,8 @@
 services:
   vps-calculator:
-    image: ghcr.io/jackxunkun163/vps-value-calculator:latest
-    # 如需改为 Docker Hub 镜像，将上行替换为：
-    # image: <你的DockerHub用户名>/vps-value-calculator:latest
+    image: kunkun66/vps-value-calculator:latest   # Docker Hub
+    # 备用镜像源（GitHub GHCR）：
+    # image: ghcr.io/jackxunkun163/vps-value-calculator:latest
     container_name: vps-calculator
     restart: unless-stopped
     ports:

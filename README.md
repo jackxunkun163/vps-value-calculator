@@ -41,19 +41,18 @@
 
 镜像由 GitHub Actions 自动构建并发布，支持 `linux/amd64` 与 `linux/arm64`：
 
-```
-ghcr.io/jackxunkun163/vps-value-calculator:latest
-```
+- **Docker Hub（主要）**：`kunkun66/vps-value-calculator:latest`
+- 备用源 GHCR：`ghcr.io/jackxunkun163/vps-value-calculator:latest`（需将 Package 设为 Public）
 
 直接运行（等价于拉取安装）：
 
 ```bash
 docker run -d --name vps-calculator --restart unless-stopped \
   -p 8080:80 \
-  ghcr.io/jackxunkun163/vps-value-calculator:latest
+  kunkun66/vps-value-calculator:latest
 ```
 
-> 需要 Docker Hub（docker.io）上的镜像？见下方「发布到 Docker Hub」一节——配置两个仓库 Secret 后，CI 会自动双推，镜像地址变为 `<你的用户名>/vps-value-calculator`。
+> 每次推送代码到 `main` 分支（或打 `v*` 标签），CI 会自动构建并同步更新两个镜像仓库。
 
 ## 1Panel 部署
 
@@ -66,7 +65,7 @@ docker run -d --name vps-calculator --restart unless-stopped \
      ```yaml
      services:
        vps-calculator:
-         image: ghcr.io/jackxunkun163/vps-value-calculator:latest
+         image: kunkun66/vps-value-calculator:latest
          container_name: vps-calculator
          restart: unless-stopped
          ports:
@@ -89,7 +88,7 @@ docker run -d --name vps-calculator --restart unless-stopped \
 1Panel → **容器** → **容器** → **创建容器**：
 
 - 名称：`vps-calculator`
-- 镜像：`ghcr.io/jackxunkun163/vps-value-calculator:latest`
+- 镜像：`kunkun66/vps-value-calculator:latest`
 - 端口映射：宿主机 `8080` → 容器 `80`
 - 挂载卷：建议创建两个命名卷，分别挂载到 `/var/www/data`（汇率缓存/计数）与 `/var/www/html/share`（分享图），重建容器后数据不丢失
 
@@ -111,17 +110,21 @@ docker compose -f docker-compose.build.yml up -d --build
 - `vps-data` 卷（`/var/www/data`）：`rates.json` 汇率缓存、`count.json` 计数。删除后自动重建。
 - `vps-share` 卷（`/var/www/html/share`）：生成的 SVG 分享图，可通过 `/share/<id>.svg` 直接访问。
 
-## 发布到 Docker Hub（可选）
+## 发布到 Docker Hub（已配置）
 
-CI（`.github/workflows/docker-publish.yml`）默认把镜像推送到 ghcr.io。如需同步发布到 Docker Hub：
+CI（`.github/workflows/docker-publish.yml`）在每次 push 到 `main`（或推送 `v*` 标签）时自动构建，并同时推送到：
 
-1. 登录 [Docker Hub](https://hub.docker.com/) → **Account Settings** → **Security** → **New Access Token**，权限选择 **Read & Write**，复制令牌。
-2. 打开 GitHub 仓库 → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**，添加：
-   - `DOCKERHUB_USERNAME`：Docker Hub 用户名
-   - `DOCKERHUB_TOKEN`：上一步生成的访问令牌
-3. 之后每次 push 到 `main`（或推送 `v*` 标签）会自动双推；也可在 **Actions** 页面手动 **Run workflow**。
+- **Docker Hub**：`kunkun66/vps-value-calculator`（凭据存于仓库 Secrets `DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN`）
+- **GHCR**：`ghcr.io/jackxunkun163/vps-value-calculator`（默认私有，可在 Package settings 改为 Public 作为备用源）
 
-配置完成后镜像地址为：`<你的DockerHub用户名>/vps-value-calculator:latest`，1Panel 中把 compose 的 `image:` 换成该地址即可。
+也可在 **Actions** 页面手动 **Run workflow**。如需更换 Docker Hub 令牌（如过期或泄露），在 Docker Hub 重新生成后更新仓库 Secret `DOCKERHUB_TOKEN` 即可。
+
+## 汇率数据说明
+
+- 服务端**每小时**从公开汇率接口拉取一次并缓存（与原站行为一致），页面每次打开都会请求 `/api/rates.php` 获取最新缓存值
+- 主源 `open.er-api.com`（备源 jsDelivr currency-api）；上游免费接口本身约**每日更新一次**，因此同一天内数值可能不变，属正常现象
+- 接口全部不可用时自动退回旧缓存，仍无缓存则使用内置备用汇率（页面会显示「接口异常 · 使用备用汇率」）
+- 需要精确结算时可勾选「自定义」手动填写汇率，计算立即按自定义值重算
 
 ## 环境要求
 
