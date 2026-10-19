@@ -4,6 +4,12 @@
 
 > ⚠️ 本项目界面与交互复刻自 vps.ss，仅供个人学习与研究交流，请勿用于商业用途。
 
+| | |
+| :-- | :-- |
+| 📖 **使用说明** | [docs/usage.md](docs/usage.md) —— 页面总览、四步上手、各功能区详解、结果解读、公式与实测示例、FAQ |
+| 🚀 **快速部署** | Docker Hub 镜像 `kunkun66/vps-value-calculator:latest`，1Panel 编排粘贴即用，见下方[部署章节](#1panel-部署) |
+| 🔗 **仓库** | [GitHub](https://github.com/jackxunkun163/vps-value-calculator) · 镜像 [Docker Hub](https://hub.docker.com/r/kunkun66/vps-value-calculator) / [GHCR](https://github.com/jackxunkun163/vps-value-calculator/pkgs/container/vps-value-calculator) |
+
 ## 功能
 
 - **按天折算剩余价值**：`剩余价值 = 续费金额 ÷ 付款周期天数 × 剩余天数 × 汇率`
@@ -32,9 +38,12 @@
 │   ├── count.php          # 计数器
 │   ├── calc.php           # 核心计算（与前端逻辑一致）
 │   └── share_svg.php      # SVG 分享图生成
-├── data/                  # 汇率缓存 / 计数（卷挂载）
+├── data/                     # 汇率缓存 / 计数（卷挂载）
+├── docs/usage.md             # 使用说明（功能详解 / 示例 / FAQ）
+├── .github/workflows/        # CI：自动构建镜像，双推 Docker Hub + GHCR
 ├── Dockerfile
-└── docker-compose.yml
+├── docker-compose.yml        # 拉取镜像部署（1Panel 粘贴即用）
+└── docker-compose.build.yml  # 从源码构建部署
 ```
 
 ## Docker 镜像
