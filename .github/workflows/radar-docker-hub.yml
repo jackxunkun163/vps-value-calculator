@@ -1,0 +1,81 @@
+name: radar-docker-hub
+
+# 借道构建：chatgpt-business-price-radar 仓库自身的 docker-publish 工作流在
+# 配置 DOCKERHUB_USERNAME / DOCKERHUB_TOKEN 两个 Secret 之前只能推 ghcr.io。
+# 本工作流利用本仓库（vps-value-calculator）已配置的 Docker Hub 凭据，
+# 检出该仓库代码并构建推送 Docker Hub 镜像 kunkun66/chatgpt-business-price-radar。
+#
+# 在 chatgpt-business-price-radar 仓库 Settings → Secrets and variables → Actions
+# 添加同样的 DOCKERHUB_USERNAME / DOCKERHUB_TOKEN 后，其自身工作流即可双推，
+# 届时可删除本工作流。
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 每天 03:35 UTC（北京时间 11:35）唤醒，每两天真正构建一次（与上游数据刷新节奏一致）
+    - cron: "35 3 * * *"
+
+jobs:
+  schedule-gate:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.gate.outputs.run }}
+    steps:
+      - id: gate
+        name: Schedules every two days; manual dispatches always run
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" != "schedule" ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          epoch_day=$(( $(date -u +%s) / 86400 ))
+          if (( epoch_day % 2 == 0 )); then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  publish:
+    needs: schedule-gate
+    if: needs.schedule-gate.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout chatgpt-business-price-radar
+        uses: actions/checkout@v4
+        with:
+          repository: jackxunkun163/chatgpt-business-price-radar
+          ref: main
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: kunkun66/chatgpt-business-price-radar
+          tags: |
+            type=raw,value=latest
+            type=sha
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
