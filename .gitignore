@@ -1,0 +1,6 @@
+# 参考用的原站源码抓取目录
+/_source/
+
+# 运行时数据
+/data/*.json
+/html/share/*.svg

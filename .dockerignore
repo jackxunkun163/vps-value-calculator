@@ -1,0 +1,7 @@
+.git
+.gitignore
+_source
+data/*.json
+html/share/*.svg
+*.md
+docker-compose.yml
